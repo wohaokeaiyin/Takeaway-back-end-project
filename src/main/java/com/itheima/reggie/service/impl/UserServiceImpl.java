@@ -8,9 +8,12 @@ import com.itheima.reggie.mapper.UserMapper;
 import com.itheima.reggie.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpSession;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author SunQi
@@ -19,6 +22,10 @@ import javax.servlet.http.HttpSession;
 @Service
 @Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+
+
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     @Override
     public R<String> myMsg(User user, HttpSession session) {
@@ -33,6 +40,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 //            SMSUtils.sendMessage("瑞吉外卖","SMS_291965315",phone,code);
             //需要将生成的验证码保存到session
             session.setAttribute(phone,code);
+
+            //将生成的验证码缓存到redis中，并且设置有效期5分钟
+            redisTemplate.opsForValue().set(phone,code,5, TimeUnit.MINUTES);
             return R.success("手机验证码短信发送成功");
         }
         return R.error("短信发送失败");

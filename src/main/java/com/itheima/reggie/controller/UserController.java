@@ -6,6 +6,7 @@ import com.itheima.reggie.entity.User;
 import com.itheima.reggie.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +27,9 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private RedisTemplate redisTemplate;
+
     @PostMapping("sendMsg")
     public R<String> sendMsg(@RequestBody User user, HttpSession session){
         R<String> result = userService.myMsg(user,session);
@@ -41,7 +45,11 @@ public class UserController {
 
         String code = map.get("code").toString();
 
-        Object codeInsession =  session.getAttribute(phone);
+        //从session中获取保存的验证码
+        //Object codeInsession =  session.getAttribute(phone);
+
+        //从redis中获取缓存的验证码
+        Object codeInsession = redisTemplate.opsForValue().get(phone);
         if(codeInsession != null && codeInsession.equals(code)){
             //判断当前用户是否是新用户
             LambdaQueryWrapper<User> userLambdaQueryWrapper = new LambdaQueryWrapper<>();
@@ -54,6 +62,9 @@ public class UserController {
                 userService.save(usertemp);
             }
             session.setAttribute("user", user.getId());
+
+            //如果用户登录成功，删除redis中缓存的验证码
+            redisTemplate.delete(phone);
             return R.success(user);
         }
         return R.error("登录失败");
